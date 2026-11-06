@@ -4,7 +4,9 @@ require('dotenv').config();
 function obrigatoria(nome) {
   const valor = process.env[nome];
   if (!valor) {
-    console.error(`Variável de ambiente ${nome} não definida. Veja o .env.example.`);
+    console.error(
+      `Variável de ambiente ${nome} não definida. Veja o .env.example.`,
+    );
     process.exit(1);
   }
   return valor;

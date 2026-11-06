@@ -39,7 +39,10 @@ function infoLoja(nome) {
 
 function dinheiro(valor, moeda, estimado = false) {
   // Intl formata no padrão brasileiro (R$ 19,90 / US$ 4,99)
-  const texto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moeda }).format(valor);
+  const texto = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: moeda,
+  }).format(valor);
   return estimado ? `≈ ${texto}` : texto;
 }
 
@@ -59,8 +62,14 @@ function criarEmbed(o) {
     .setTimestamp();
 
   // Descrição: título grande + selo de menor preço + botão (link) de compra
-  const linhas = [gratis ? '## 🎁 JOGO GRÁTIS' : `## 🔥 ${o.desconto}% DE DESCONTO`];
-  if (!gratis && o.minimoHistorico != null && o.precoPromo <= o.minimoHistorico + 0.005) {
+  const linhas = [
+    gratis ? '## 🎁 JOGO GRÁTIS' : `## 🔥 ${o.desconto}% DE DESCONTO`,
+  ];
+  if (
+    !gratis &&
+    o.minimoHistorico != null &&
+    o.precoPromo <= o.minimoHistorico + 0.005
+  ) {
     linhas.push('🏆 **Menor preço já registrado!**');
   }
   const acao = gratis ? '🎁 Resgatar' : '🛒 Comprar';
@@ -72,20 +81,41 @@ function criarEmbed(o) {
   if (gratis) {
     campos.push({ name: '💰 Por apenas', value: '**GRÁTIS**', inline: true });
     if (o.precoNormal > 0) {
-      campos.push({ name: '🏷️ Valia', value: `~~${dinheiro(o.precoNormal, o.moeda)}~~`, inline: true });
+      campos.push({
+        name: '🏷️ Valia',
+        value: `~~${dinheiro(o.precoNormal, o.moeda)}~~`,
+        inline: true,
+      });
     }
   } else {
-    campos.push({ name: '💰 Por apenas', value: `**${dinheiro(o.precoPromo, o.moeda, o.estimado)}**`, inline: true });
-    campos.push({ name: '🏷️ Preço normal', value: `~~${dinheiro(o.precoNormal, o.moeda, o.estimado)}~~`, inline: true });
+    campos.push({
+      name: '💰 Por apenas',
+      value: `**${dinheiro(o.precoPromo, o.moeda, o.estimado)}**`,
+      inline: true,
+    });
+    campos.push({
+      name: '🏷️ Preço normal',
+      value: `~~${dinheiro(o.precoNormal, o.moeda, o.estimado)}~~`,
+      inline: true,
+    });
   }
   campos.push({ name: '🏪 Loja', value: `**${loja.exibir}**`, inline: true });
 
   if (!gratis && o.minimoHistorico != null) {
-    campos.push({ name: '📉 Mínimo histórico', value: dinheiro(o.minimoHistorico, o.moeda), inline: true });
+    campos.push({
+      name: '📉 Mínimo histórico',
+      value: dinheiro(o.minimoHistorico, o.moeda),
+      inline: true,
+    });
   }
-  if (o.cupom) campos.push({ name: '🎟️ Cupom', value: `\`${o.cupom}\``, inline: true });
+  if (o.cupom)
+    campos.push({ name: '🎟️ Cupom', value: `\`${o.cupom}\``, inline: true });
   if (o.avaliacao) {
-    campos.push({ name: '⭐ Avaliação', value: AVALIACOES[o.avaliacao] ?? o.avaliacao, inline: true });
+    campos.push({
+      name: '⭐ Avaliação',
+      value: AVALIACOES[o.avaliacao] ?? o.avaliacao,
+      inline: true,
+    });
   }
   if (o.ate) {
     campos.push({
