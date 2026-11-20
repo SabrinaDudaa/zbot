@@ -21,5 +21,7 @@ module.exports = {
   maxPorCiclo: Number(process.env.MAX_POR_CICLO ?? 15),
   cron: process.env.CRON || '0 */6 * * *',
   itadKey: process.env.ITAD_API_KEY || null,
+  // Só posta jogos que estejam entre os N mais populares do ITAD (0 desliga o filtro).
+  popularidadeTop: Number(process.env.POPULARIDADE_TOP ?? 2000),
   pais: 'BR',
 };

@@ -38,6 +38,7 @@ async function verificarPromocoes(client) {
         f.buscar({
           descontoMinimo: config.descontoMinimo,
           itadKey: config.itadKey,
+          popularidadeTop: config.popularidadeTop,
           pais: config.pais,
         })
       )

@@ -3,11 +3,24 @@
 // Também traz o menor preço histórico, cupom (quando existe) e a imagem de capa do jogo.
 // Precisa de uma chave gratuita: https://isthereanydeal.com/apps/my/  -> ITAD_API_KEY no .env
 // Docs: https://docs.isthereanydeal.com/
+const { fetchComTimeout } = require('../http');
+
 const BASE = 'https://api.isthereanydeal.com';
 const LOJAS_DESEJADAS = ['steam', 'gog', 'nuuvem'];
 const HEADERS = { 'User-Agent': 'bot-promocoes-discord/1.0 (bot pessoal de Discord)' };
 
+// Quantas ofertas lemos por verificação: até 5 páginas de 200 (1000 ofertas). Precisamos ler
+// bastante porque, com o filtro de popularidade, só uma parte delas sobra.
+const OFERTAS_POR_PAGINA = 200;
+const MAX_PAGINAS_OFERTAS = 5;
+
+// Lista de jogos populares (ranking do próprio ITAD): guardamos por 12 horas para não pedir
+// toda verificação. O ranking muda devagar.
+const POPULARES_POR_PAGINA = 500;
+const VALIDADE_POPULARES_MS = 12 * 60 * 60 * 1000;
+
 let idsCache = null; // os IDs das lojas não mudam, então buscamos uma vez só
+let popularesCache = { ids: null, quando: 0 };
 
 async function erroDaApi(res, rota) {
   const corpo = (await res.text().catch(() => '')).slice(0, 200);
@@ -18,7 +31,7 @@ async function erroDaApi(res, rota) {
 async function descobrirIdsDasLojas(chave, pais) {
   if (idsCache) return idsCache;
   const params = new URLSearchParams({ key: chave, country: pais });
-  const res = await fetch(`${BASE}/service/shops/v1?${params}`, { headers: HEADERS });
+  const res = await fetchComTimeout(`${BASE}/service/shops/v1?${params}`, { headers: HEADERS });
   if (!res.ok) throw await erroDaApi(res, '/service/shops');
 
   const lojas = await res.json();
@@ -31,21 +44,96 @@ async function descobrirIdsDasLojas(chave, pais) {
   return ids;
 }
 
-async function buscar({ descontoMinimo, itadKey, pais }) {
+// Devolve um Set com os IDs dos jogos mais populares do ITAD (soma de quem tem o jogo na
+// lista de desejos e na coleção). Serve para descartar jogos muito obscuros.
+// Devolve null (= sem filtro) se o filtro estiver desligado (top = 0) ou se a busca falhar.
+async function carregarPopulares(chave, top) {
+  if (!top) return null;
+  if (popularesCache.ids && Date.now() - popularesCache.quando < VALIDADE_POPULARES_MS) {
+    return popularesCache.ids;
+  }
+
+  try {
+    const ids = new Set();
+    for (let offset = 0; offset < top; offset += POPULARES_POR_PAGINA) {
+      const params = new URLSearchParams({
+        key: chave,
+        offset: String(offset),
+        limit: String(Math.min(POPULARES_POR_PAGINA, top - offset)),
+      });
+      const res = await fetchComTimeout(`${BASE}/stats/most-popular/v1?${params}`, {
+        headers: HEADERS,
+      });
+      if (!res.ok) throw await erroDaApi(res, '/stats/most-popular');
+
+      const json = await res.json();
+      const pagina = Array.isArray(json) ? json : (json.list ?? []);
+      pagina.forEach((jogo) => ids.add(jogo.id));
+      if (pagina.length < POPULARES_POR_PAGINA) break; // acabou a lista
+    }
+    if (ids.size === 0) throw new Error('a lista de jogos populares veio vazia');
+
+    popularesCache = { ids, quando: Date.now() };
+    return ids;
+  } catch (erro) {
+    console.warn(`[itad] não consegui a lista de jogos populares: ${erro.message}`);
+    if (popularesCache.ids) {
+      console.warn('[itad] usando a última lista de populares que deu certo.');
+      return popularesCache.ids;
+    }
+    console.warn(
+      '[itad] ATENÇÃO: filtro de popularidade DESLIGADO neste ciclo; jogos obscuros podem aparecer.'
+    );
+    return null;
+  }
+}
+
+// Lê as ofertas página por página (o ITAD entrega no máximo 200 por vez).
+async function buscarOfertas(chave, pais, idsDasLojas) {
+  const ofertas = [];
+  let offset = 0;
+
+  for (let pagina = 0; pagina < MAX_PAGINAS_OFERTAS; pagina++) {
+    const params = new URLSearchParams({
+      key: chave,
+      country: pais, // BR = preços em reais
+      shops: idsDasLojas.join(','), // o ITAD devolve cada jogo uma vez, na loja com o melhor preço
+      limit: String(OFERTAS_POR_PAGINA),
+      offset: String(offset),
+    });
+    const res = await fetchComTimeout(`${BASE}/deals/v2?${params}`, { headers: HEADERS });
+    if (!res.ok) throw await erroDaApi(res, '/deals');
+    const json = await res.json();
+
+    ofertas.push(...(json.list ?? []));
+    if (!json.hasMore) break;
+    offset = json.nextOffset ?? offset + OFERTAS_POR_PAGINA;
+  }
+  return ofertas;
+}
+
+async function buscar({ descontoMinimo, itadKey, pais, popularidadeTop }) {
   const ids = await descobrirIdsDasLojas(itadKey, pais);
+  const [ofertas, populares] = await Promise.all([
+    buscarOfertas(itadKey, pais, ids),
+    carregarPopulares(itadKey, popularidadeTop)
+  ]);
 
-  const params = new URLSearchParams({
-    key: itadKey,
-    country: pais, // BR = preços em reais
-    shops: ids.join(','), // o ITAD devolve cada jogo uma vez, na loja com o melhor preço
-    limit: '100',
-  });
-  const res = await fetch(`${BASE}/deals/v2?${params}`, { headers: HEADERS });
-  if (!res.ok) throw await erroDaApi(res, '/deals');
-  const json = await res.json();
+  const comDesconto = ofertas.filter(
+    (item) => item.type === 'game' && item.deal && item.deal.cut >= descontoMinimo
+  );
+  // Sem a lista de populares (filtro desligado ou falhou), deixa passar tudo.
+  const conhecidas = populares
+    ? comDesconto.filter((item) => populares.has(item.id))
+    : comDesconto;
+  console.log(
+    `[itad] ${ofertas.length} ofertas lidas, ${comDesconto.length} com desconto de ${descontoMinimo}% ou mais` +
+      (populares
+        ? `, ${conhecidas.length} entre os ${popularidadeTop} jogos mais populares.`
+        : ' (sem filtro de popularidade).')
+  );
 
-  return (json.list ?? [])
-    .filter((item) => item.type === 'game' && item.deal && item.deal.cut >= descontoMinimo)
+  return conhecidas
     .map((item) => {
       const d = item.deal;
       const arte = item.assets ?? {};

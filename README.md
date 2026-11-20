@@ -12,6 +12,8 @@ Feito em **JavaScript (Node.js)** com **discord.js**.
 - Guarda o que já foi postado e **não repete** a mesma oferta (esquece depois de 30 dias).
 - Verifica automaticamente a cada 6 horas (configurável) e também sob demanda com o comando `/promocoes`.
 
+Para não postar jogos obscuros, as ofertas do ITAD são filtradas pelo ranking de popularidade do próprio ITAD (quantas pessoas têm o jogo na lista de desejos ou na coleção). Só entram jogos entre os `POPULARIDADE_TOP` mais populares; aumente o número para ter mais variedade ou diminua para ficar só com os mais famosos. Esse filtro não vale no plano B (CheapShark).
+
 Sem a chave do ITAD, ele usa o CheapShark (Steam e GOG) e converte o dólar para real, então os preços ficam estimados e a Nuuvem não aparece.
 
 ## Tecnologias
@@ -50,6 +52,7 @@ Node.js 18.17+ · discord.js 14 · node-cron · dotenv · APIs do ITAD, CheapSha
 | `GUILD_ID` | Não | ID do servidor; com ele o comando aparece na hora (sem, pode levar até 1h) | — |
 | `ITAD_API_KEY` | Não | Chave gratuita do ITAD para preços reais em R$ e Nuuvem | — |
 | `DESCONTO_MINIMO` | Não | Desconto mínimo (%) para postar | `20` |
+| `POPULARIDADE_TOP` | Não | Só posta jogos entre os N mais populares do ITAD (`0` desliga o filtro) | `2000` |
 | `MAX_POR_CICLO` | Não | Máximo de promoções por verificação | `15` |
 | `CRON` | Não | Frequência da verificação automática | `0 */6 * * *` |
 
