@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, Pe
 const cron = require('node-cron');
 const config = require('./config');
 const { verificarPromocoes } = require('./promocoes');
+const cores = require('./painelCores');
 
 // Intents = quais tipos de evento o bot quer receber. Só precisamos do básico (Guilds);
 // não lemos mensagens, então não precisa de intents privilegiadas.
@@ -14,6 +15,7 @@ const comandos = [
     .setDescription('Verifica agora as promoções de jogos e posta as novas no canal')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) // só quem gerencia o servidor
     .toJSON(),
+  ...cores.comandos,
 ];
 
 async function registrarComandos() {
@@ -37,6 +39,11 @@ client.once(Events.ClientReady, async (c) => {
   // Agenda a verificação periódica (padrão: a cada 6 horas) e faz uma já na inicialização.
   cron.schedule(config.cron, () => verificarPromocoes(client).catch(console.error));
   verificarPromocoes(client).catch(console.error);
+});
+
+// Cores: painel, menu, botões e comandos /cor e /painel-cores.
+client.on(Events.InteractionCreate, (interacao) => {
+  cores.tratar(interacao).catch((erro) => console.error('[cores] erro:', erro));
 });
 
 client.on(Events.InteractionCreate, async (interacao) => {
