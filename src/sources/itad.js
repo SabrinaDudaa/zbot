@@ -9,10 +9,11 @@ const BASE = 'https://api.isthereanydeal.com';
 const LOJAS_DESEJADAS = ['steam', 'gog', 'nuuvem'];
 const HEADERS = { 'User-Agent': 'bot-promocoes-discord/1.0 (bot pessoal de Discord)' };
 
-// Quantas ofertas lemos por verificação: até 5 páginas de 200 (1000 ofertas). Precisamos ler
-// bastante porque, com o filtro de popularidade, só uma parte delas sobra.
+// Quantas ofertas lemos por verificação (páginas de 200). Com o filtro de popularidade lemos
+// mais páginas, porque só uma parte das ofertas sobra.
 const OFERTAS_POR_PAGINA = 200;
-const MAX_PAGINAS_OFERTAS = 5;
+const MAX_PAGINAS_COM_FILTRO = 10;
+const MAX_PAGINAS_SEM_FILTRO = 3;
 
 // Lista de jogos populares (ranking do próprio ITAD): guardamos por 12 horas para não pedir
 // toda verificação. O ranking muda devagar.
@@ -89,15 +90,20 @@ async function carregarPopulares(chave, top) {
 }
 
 // Lê as ofertas página por página (o ITAD entrega no máximo 200 por vez).
-async function buscarOfertas(chave, pais, idsDasLojas) {
+// sort=rank traz os jogos mais populares primeiro (a ordem padrão do ITAD é quase aleatória e
+// cheia de jogos obscuros). Com o filtro ligado, paramos de ler quando uma página inteira não
+// tem nenhum jogo popular, porque as próximas só piorariam.
+async function buscarOfertas(chave, pais, idsDasLojas, populares) {
   const ofertas = [];
+  const maxPaginas = populares ? MAX_PAGINAS_COM_FILTRO : MAX_PAGINAS_SEM_FILTRO;
   let offset = 0;
 
-  for (let pagina = 0; pagina < MAX_PAGINAS_OFERTAS; pagina++) {
+  for (let pagina = 0; pagina < maxPaginas; pagina++) {
     const params = new URLSearchParams({
       key: chave,
       country: pais, // BR = preços em reais
       shops: idsDasLojas.join(','), // o ITAD devolve cada jogo uma vez, na loja com o melhor preço
+      sort: 'rank', // mais populares primeiro
       limit: String(OFERTAS_POR_PAGINA),
       offset: String(offset),
     });
@@ -105,8 +111,10 @@ async function buscarOfertas(chave, pais, idsDasLojas) {
     if (!res.ok) throw await erroDaApi(res, '/deals');
     const json = await res.json();
 
-    ofertas.push(...(json.list ?? []));
+    const lista = json.list ?? [];
+    ofertas.push(...lista);
     if (!json.hasMore) break;
+    if (populares && !lista.some((item) => populares.has(item.id))) break;
     offset = json.nextOffset ?? offset + OFERTAS_POR_PAGINA;
   }
   return ofertas;
@@ -114,10 +122,8 @@ async function buscarOfertas(chave, pais, idsDasLojas) {
 
 async function buscar({ descontoMinimo, itadKey, pais, popularidadeTop }) {
   const ids = await descobrirIdsDasLojas(itadKey, pais);
-  const [ofertas, populares] = await Promise.all([
-    buscarOfertas(itadKey, pais, ids),
-    carregarPopulares(itadKey, popularidadeTop)
-  ]);
+  const populares = await carregarPopulares(itadKey, popularidadeTop);
+  const ofertas = await buscarOfertas(itadKey, pais, ids, populares);
 
   const comDesconto = ofertas.filter(
     (item) => item.type === 'game' && item.deal && item.deal.cut >= descontoMinimo
