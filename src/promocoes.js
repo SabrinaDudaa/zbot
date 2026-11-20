@@ -57,12 +57,13 @@ async function verificarPromocoes(client) {
     novas.sort((a, b) => (b.tipo === 'gratis') - (a.tipo === 'gratis') || b.desconto - a.desconto);
     const paraPostar = novas.slice(0, config.maxPorCiclo);
 
-    // O Discord aceita no máximo 10 embeds por mensagem, então enviamos em lotes.
-    for (let i = 0; i < paraPostar.length; i += 10) {
-      const lote = paraPostar.slice(i, i + 10);
-      await canal.send({ embeds: lote.map(criarEmbed) });
-      lote.forEach((o) => (enviados[o.id] = Date.now()));
-      store.salvar(enviados); // salva a cada lote: se o bot cair, não repete o que já foi
+    // Uma mensagem por jogo, com uma pequena pausa entre elas (evita o limite de envio do Discord
+    // e deixa o canal mais fácil de ler).
+    for (const oferta of paraPostar) {
+      await canal.send({ embeds: [criarEmbed(oferta)] });
+      enviados[oferta.id] = Date.now();
+      store.salvar(enviados); // salva a cada mensagem: se o bot cair, não repete o que já foi
+      await new Promise((r) => setTimeout(r, 1500));
     }
 
     console.log(`[${new Date().toISOString()}] ${paraPostar.length} promoções postadas.`);
