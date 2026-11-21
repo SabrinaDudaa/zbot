@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const config = require('./config');
 const { verificarPromocoes } = require('./promocoes');
 const cores = require('./painelCores');
+const { verificarAnimes } = require('./animes');
 
 // Intents = quais tipos de evento o bot quer receber. Só precisamos do básico (Guilds);
 // não lemos mensagens, então não precisa de intents privilegiadas.
@@ -39,6 +40,12 @@ client.once(Events.ClientReady, async (c) => {
   // Agenda a verificação periódica (padrão: a cada 6 horas) e faz uma já na inicialização.
   cron.schedule(config.cron, () => verificarPromocoes(client).catch(console.error));
   verificarPromocoes(client).catch(console.error);
+
+  // Animes novos: a cada 30 minutos (só se CANAL_ANIMES_ID estiver configurado).
+  if (config.canalAnimesId) {
+    cron.schedule(config.cronAnimes, () => verificarAnimes(client).catch(console.error));
+    verificarAnimes(client).catch(console.error);
+  }
 });
 
 // Cores: painel, menu, botões e comandos /cor e /painel-cores.

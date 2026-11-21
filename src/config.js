@@ -23,5 +23,11 @@ module.exports = {
   itadKey: process.env.ITAD_API_KEY || null,
   // Só posta jogos que estejam entre os N mais populares do ITAD (0 desliga o filtro).
   popularidadeTop: Number(process.env.POPULARIDADE_TOP ?? 2000),
+  // Animes (opcional): sem CANAL_ANIMES_ID o recurso fica desligado.
+  canalAnimesId: process.env.CANAL_ANIMES_ID || null,
+  // Só avisa animes com pelo menos N pessoas com ele na lista do AniList (maior = só os famosos).
+  animePopularidadeMin: Number(process.env.ANIME_POPULARIDADE_MIN ?? 10000),
+  maxAnimesPorCiclo: Number(process.env.MAX_ANIMES_POR_CICLO ?? 10),
+  cronAnimes: process.env.CRON_ANIMES || '*/30 * * * *',
   pais: 'BR',
 };

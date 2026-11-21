@@ -11,6 +11,7 @@ Feito em **JavaScript (Node.js)** com **discord.js**.
 - Mostra cada oferta num cartão (embed) com capa, preço promocional, preço normal, desconto e data de término.
 - Guarda o que já foi postado e **não repete** a mesma oferta (esquece depois de 30 dias).
 - Deixa o pessoal do servidor **escolher a cor do próprio nome**: um painel com 25 cores prontas e um botão para digitar qualquer hex (veja "Cores" abaixo).
+- Avisa **episódios novos de anime** num canal (via [AniList](https://anilist.co/)), com os links oficiais de streaming, como a Crunchyroll.
 - Verifica automaticamente a cada 6 horas (configurável) e também sob demanda com o comando `/promocoes`.
 
 Para não postar jogos obscuros, as ofertas do ITAD são lidas em ordem de popularidade (`sort=rank`) e filtradas pelo ranking de popularidade do próprio ITAD (quantas pessoas têm o jogo na lista de desejos ou na coleção). Só entram jogos entre os `POPULARIDADE_TOP` mais populares; aumente o número para ter mais variedade ou diminua para ficar só com os mais famosos. Esse filtro não vale no plano B (CheapShark).
@@ -54,6 +55,9 @@ Node.js 18.17+ · discord.js 14 · node-cron · dotenv · APIs do ITAD, CheapSha
 | `ITAD_API_KEY` | Não | Chave gratuita do ITAD para preços reais em R$ e Nuuvem | — |
 | `DESCONTO_MINIMO` | Não | Desconto mínimo (%) para postar | `20` |
 | `POPULARIDADE_TOP` | Não | Só posta jogos entre os N mais populares do ITAD (`0` desliga o filtro) | `2000` |
+| `CANAL_ANIMES_ID` | Não | Canal dos avisos de anime (sem ele, o recurso fica desligado) | — |
+| `ANIME_POPULARIDADE_MIN` | Não | Só avisa animes com ao menos N pessoas com ele na lista do AniList | `10000` |
+| `CRON_ANIMES` | Não | Frequência da verificação de animes | `*/30 * * * *` |
 | `MAX_POR_CICLO` | Não | Máximo de promoções por verificação | `15` |
 | `CRON` | Não | Frequência da verificação automática | `0 */6 * * *` |
 
@@ -83,6 +87,7 @@ src/
 ├── embed.js        # monta o cartão de cada oferta
 ├── cores.js        # cria/atribui os cargos de cor
 ├── painelCores.js  # painel, menu, botões e comandos de cores
+├── animes.js       # episódios novos de anime (AniList)
 ├── store.js        # guarda em JSON o que já foi postado
 ├── cambio.js       # cotação do dólar (plano B sem chave do ITAD)
 ├── http.js         # fetch com tempo limite
