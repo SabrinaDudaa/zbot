@@ -129,6 +129,16 @@ async function verificarAnimes(client) {
       .filter((ep) => !enviados[`anime:${ep.media.id}:${ep.episode}`])
       .slice(0, config.maxAnimesPorCiclo);
 
+    // Mostra os descartados e o motivo, para ajustar o ANIME_POPULARIDADE_MIN com facilidade.
+    for (const ep of todos.filter((e) => !candidatos.includes(e))) {
+      const m = ep.media;
+      const motivo = m.isAdult
+        ? 'adulto'
+        : m.countryOfOrigin !== 'JP'
+          ? `origem ${m.countryOfOrigin}`
+          : `popularidade ${m.popularity} < ${config.animePopularidadeMin}`;
+      console.log(`[animes] descartado: ${m.title.romaji} ep ${ep.episode} (${motivo})`);
+    }
     console.log(
       `[animes] ${todos.length} episódios na janela, ${candidatos.length} populares, ${novos.length} novos.`
     );
