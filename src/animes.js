@@ -95,8 +95,10 @@ function criarEmbedAnime(ep) {
     .setFooter({ text: 'via AniList' })
     .setTimestamp(new Date(ep.airingAt * 1000));
 
-  const imagem = m.bannerImage || m.coverImage?.extraLarge;
-  if (imagem) embed.setImage(imagem);
+  // Sempre a CAPA (poster) como miniatura: tamanho fixo no canto, igual em todos os cards.
+  // (Antes usávamos o banner quando existia, e banner e capa têm proporções diferentes.)
+  const capa = m.coverImage?.extraLarge;
+  if (capa) embed.setThumbnail(capa);
   return embed;
 }
 
